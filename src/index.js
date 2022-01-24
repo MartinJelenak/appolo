@@ -2,37 +2,45 @@ const {ApolloServer} = require('apollo-server');
 const fs = require('fs');
 const path = require('path');
 
-let links = [{
-    id: 'link-0',
-    url: 'www.howtographql.com',
-    description: 'Fullstack tutorial for GraphQL',
-},
-{
-    id: 'link-1',
-    url: 'www.howtographql.com',
-    description: 'Fullstack tutorial for GraphQL',
-}
-]
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
 
 const resolvers = {
     Query : {
-        info: () => 'TESTIM QUERY',
-        feed: () => links,
+        info: () => 'Info',
+        feed: async (parent, args, context, info) => {
+            return context.prisma.link.findMany()
+        },
     },
     Mutation : {
-        post: (parent, args) =>{
-            let idCount = links.length
-
-            const link = {
-                id: `link-${idCount++}`,
-                description: args.description,
-                url: args.url,
-            }
-            links.push(link)
-            return link
+        post: (parent, args, context, info) => {
+            const newLink = context.prisma.link.create({
+                data: {
+                    url: args.url,
+                    description: args.description,
+                },
+            })
+            return newLink
         },
-        deleteLink: (parent, args) =>{
-            
+        deleteLink: (parent, args, context, info) => {
+            const deleteLink = context.prisma.link.delete({
+                where: {
+                    id: +args.id,
+                }
+            })
+            return deleteLink
+        },
+        updateLink: (parent,args,context,info) => {
+            const updateLink = context.prisma.link.update({
+                where:{
+                    id: +args.id,
+                },
+                data:{
+                    url: args.url,
+                    description: args.description,
+                }
+            })
+            return updateLink
         }
     }
     
@@ -44,7 +52,10 @@ const server = new ApolloServer({
         path.join(__dirname, 'schema.graphql'),
         'utf8'
     ),
-    resolvers
+    resolvers,
+    context: {
+        prisma,
+      }
 })
 
 server
